@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Times Table Blaster</title>
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            overflow: hidden;
+            background: #1a1a1a;
+        }
+        #game-container {
+            width: 100vw;
+            height: 100vh;
+            position: relative;
+            background: linear-gradient(to bottom, #000033, #000066);
+        }
+        #spaceship {
+            position: absolute;
+            top: 50px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 60px;
+            height: 40px;
+            background: #666;
+            clip-path: polygon(0% 100%, 50% 0%, 100% 100%);
+        }
+        #bomb {
+            position: absolute;
+            width: 20px;
+            height: 30px;
+            background: red;
+            border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
+            display: none;
+        }
+        #city {
+            position: absolute;
+            bottom: 0;
+            width: 100%;
+            height: 100px;
+            background: #333;
+        }
+        .building {
+            position: absolute;
+            bottom: 0;
+            width: 40px;
+            background: #444;
+            border-top: 4px solid #555;
+        }
+        #question {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: white;
+            font-size: 24px;
+            text-align: center;
+        }
+        #answer-input {
+            position: absolute;
+            bottom: 120px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 10px;
+            font-size: 18px;
+            width: 100px;
+            text-align: center;
+        }
+        #score {
+            position: absolute;
+            top: 10px;
+            right: 20px;
+            color: white;
+            font-size: 20px;
+        }
+        #speed-bonus {
+            position: absolute;
+            top: 40px;
+            right: 20px;
+            color: #FFD700;
+            font-size: 18px;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        #wrong-answer {
+            position: absolute;
+            top: 70px;
+            right: 20px;
+            color: #ff3333;
+            font-size: 18px;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        #splash-screen, #game-over-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            text-align: center;
+        }
+        .screen-button {
+            padding: 15px 30px;
+            font-size: 24px;
+            background: #4CAF50;
+            color: white;
+            border: 3px solid #45a049;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-top: 20px;
+            box-shadow: 0 0 15px rgba(76, 175, 80, 0.5);
+            text-transform: uppercase;
+            font-weight: bold;
+        }
+        .screen-button:hover {
+            background: #45a049;
+        }
+        #correct-mark {
+            position: absolute;
+            color: #4CAF50;
+            font-size: 40px;
+            display: none;
+        }
+        .rules {
+            max-width: 600px;
+            margin: 20px;
+            line-height: 1.6;
+        }
+        @keyframes screenFlash {
+            0% { background: linear-gradient(to bottom, #000033, #000066); }
+            25% { background: linear-gradient(to bottom, #4a0080, #8000ff); }
+            50% { background: linear-gradient(to bottom, #800080, #ff00ff); }
+            75% { background: linear-gradient(to bottom, #4a0080, #8000ff); }
+            100% { background: linear-gradient(to bottom, #000033, #000066); }
+        }
+        @keyframes redFlash {
+            0% { background: linear-gradient(to bottom, #000033, #000066); }
+            50% { background: linear-gradient(to bottom, #660000, #990000); }
+            100% { background: linear-gradient(to bottom, #000033, #000066); }
+        }
+        .flash-animation {
+            animation: screenFlash 0.5s ease-out;
+        }
+        .wrong-animation {
+            animation: redFlash 0.5s ease-out;
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <div id="splash-screen">
+            <h1>Times Table Blaster</h1>
+            <button class="screen-button" onclick="startGame()">Start Game</button>
+            <div class="rules">
+                <h2>How to Play:</h2>
+                <p>🚀 Save the city from the alien invasion!</p>
+                <p>✨ Solve multiplication problems to destroy the falling bombs</p>
+                <p>⚡ Type your answer and press Enter</p>
+                <p>🎯 Each correct answer increases your score</p>
+                <p>⚠️ The bombs fall faster as you progress</p>
+                <p>💥 Game over if a bomb hits the city</p>
+            </div>
+        </div>
+        
+        <div id="game-over-screen" style="display: none;">
+            <h1>Game Over!</h1>
+            <h2>Final Score: <span id="final-score">0</span></h2>
+            <h3>High Score: <span id="high-score">0</span></h3>
+            <p id="score-message" style="margin: 20px; font-size: 20px; color: #FFD700;"></p>
+            <button class="screen-button" onclick="restartGame()">Play Again</button>
+        </div>
+
+        <div id="spaceship"></div>
+        <div id="bomb"></div>
+        <div id="city"></div>
+        <div id="question"></div>
+        <div id="correct-mark">✓</div>
+        <input type="number" id="answer-input" style="display: none">
+        <div id="score">Score: 0</div>
+        <div id="speed-bonus">FAST ANSWER BONUS! +5</div>
+        <div id="wrong-answer">WRONG!</div>
+    </div>
+
+    <script>
+        let gameLoop;
+        let currentAnswer;
+        let score = 0;
+        let bombSpeed = 0.09;
+        let isGameOver = false;
+        let highScore = 0;
+        let questionStartTime;
+
+        // Create city buildings
+        function createBuildings() {
+            const city = document.getElementById('city');
+            const buildingCount = Math.floor(window.innerWidth / 60);
+            
+            for (let i = 0; i < buildingCount; i++) {
+                const building = document.createElement('div');
+                building.className = 'building';
+                building.style.left = (i * 60) + 'px';
+                building.style.height = (Math.random() * 60 + 40) + 'px';
+                city.appendChild(building);
+            }
+        }
+
+        function generateQuestion() {
+            const num1 = Math.floor(Math.random() * 12) + 1;
+            const num2 = Math.floor(Math.random() * 12) + 1;
+            currentAnswer = num1 * num2;
+            document.getElementById('question').textContent = `${num1} × ${num2} = ?`;
+        }
+
+        function showCorrectMark(x, y) {
+            const mark = document.getElementById('correct-mark');
+            mark.style.left = x + 'px';
+            mark.style.top = y + 'px';
+            mark.style.display = 'block';
+            setTimeout(() => {
+                mark.style.display = 'none';
+            }, 500);
+        }
+
+        function dropBomb() {
+            const bomb = document.getElementById('bomb');
+            const spaceship = document.getElementById('spaceship');
+            let position = 0;
+            bomb.style.display = 'block';
+            bomb.style.left = (spaceship.offsetLeft + spaceship.offsetWidth/2 - 10) + 'px';
+            bomb.style.top = (spaceship.offsetTop + spaceship.offsetHeight) + 'px';
+
+            function moveBomb() {
+                if (isGameOver) return;
+                
+                position += bombSpeed;
+                bomb.style.top = (spaceship.offsetTop + spaceship.offsetHeight + position) + 'px';
+
+                if (bomb.offsetTop + bomb.offsetHeight >= document.getElementById('city').offsetTop) {
+                    gameOver();
+                } else {
+                    gameLoop = requestAnimationFrame(moveBomb);
+                }
+            }
+
+            generateQuestion();
+            document.getElementById('answer-input').value = '';
+            questionStartTime = Date.now();
+            gameLoop = requestAnimationFrame(moveBomb);
+        }
+
+        function checkAnswer(event) {
+            if (event.key === 'Enter') {
+                const userAnswer = parseInt(document.getElementById('answer-input').value);
+                if (userAnswer === currentAnswer) {
+                    const bomb = document.getElementById('bomb');
+                    showCorrectMark(bomb.offsetLeft, bomb.offsetTop);
+                    cancelAnimationFrame(gameLoop);
+                    bomb.style.display = 'none';
+                    const answerTime = (Date.now() - questionStartTime) / 1000;
+                    score += 10;
+                    
+                    if (answerTime < 5) {
+                        score += 5;
+                        document.getElementById('speed-bonus').style.opacity = '1';
+                        document.getElementById('game-container').classList.add('flash-animation');
+                        
+                        setTimeout(() => {
+                            document.getElementById('speed-bonus').style.opacity = '0';
+                        }, 1000);
+                        
+                        setTimeout(() => {
+                            document.getElementById('game-container').classList.remove('flash-animation');
+                        }, 500);
+                    }
+                    
+                    document.getElementById('score').textContent = `Score: ${score}`;
+                    bombSpeed += 0.015;
+                    setTimeout(dropBomb, 500);
+                } else {
+                    document.getElementById('game-container').classList.add('wrong-animation');
+                    document.getElementById('wrong-answer').style.opacity = '1';
+                    document.getElementById('answer-input').value = '';
+                    
+                    setTimeout(() => {
+                        document.getElementById('wrong-answer').style.opacity = '0';
+                    }, 1000);
+                    
+                    setTimeout(() => {
+                        document.getElementById('game-container').classList.remove('wrong-animation');
+                    }, 500);
+                }
+            }
+        }
+
+        function gameOver() {
+            isGameOver = true;
+            document.getElementById('final-score').textContent = score;
+            document.getElementById('high-score').textContent = highScore;
+            
+            if (score > highScore) {
+                highScore = score;
+                document.getElementById('high-score').textContent = highScore;
+                document.getElementById('score-message').textContent = 
+                    '🎉 NEW HIGH SCORE! Amazing job! Can you beat it?';
+                document.getElementById('score-message').style.color = '#FFD700';
+            } else {
+                const difference = highScore - score;
+                document.getElementById('score-message').textContent = 
+                    `You were ${difference} points away from the high score. Try again!`;
+                document.getElementById('score-message').style.color = '#FFFFFF';
+            }
+            
+            document.getElementById('game-over-screen').style.display = 'flex';
+            document.getElementById('answer-input').style.display = 'none';
+            cancelAnimationFrame(gameLoop);
+        }
+
+        function startGame() {
+            document.getElementById('splash-screen').style.display = 'none';
+            document.getElementById('answer-input').style.display = 'block';
+            document.getElementById('answer-input').focus();
+            isGameOver = false;
+            dropBomb();
+        }
+
+        function restartGame() {
+            document.getElementById('game-over-screen').style.display = 'none';
+            document.getElementById('answer-input').style.display = 'block';
+            document.getElementById('answer-input').focus();
+            score = 0;
+            bombSpeed = 0.09;
+            document.getElementById('score').textContent = `Score: ${score}`;
+            isGameOver = false;
+            dropBomb();
+        }
+
+        // Initialize game
+        createBuildings();
+        document.getElementById('answer-input').addEventListener('keypress', checkAnswer);
+    </script>
+</body>
+</html>
