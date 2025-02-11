@@ -66,6 +66,26 @@
             width: 100px;
             text-align: center;
         }
+        
+        /* Mobile adjustments */
+        @media (max-width: 768px) {
+            #game-container {
+                height: 100dvh; /* Use dynamic viewport height for mobile */
+            }
+            #city {
+                bottom: 40vh; /* Move city up on mobile */
+                height: 80px;
+            }
+            #answer-input {
+                bottom: 45vh; /* Position input above city on mobile */
+            }
+            .building {
+                height: 40px !important; /* Shorter buildings on mobile */
+            }
+            #question {
+                top: 60px; /* Move question down a bit on mobile */
+            }
+        }
         #score {
             position: absolute;
             top: 10px;
